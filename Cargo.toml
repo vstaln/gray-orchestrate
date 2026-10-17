@@ -1,0 +1,23 @@
+[package]
+name = "gray-orchestrate"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Merged orchestration plugin for the gray agent harness: loop, gsd, workflows, plan, plannotator in one sidecar."
+
+[[bin]]
+name = "orchestrate"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+libc = "0.2"
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tempfile = "3"
+yaml-rust2 = "0.10"
+
+[profile.release]
+strip = true
