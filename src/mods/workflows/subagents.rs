@@ -35,7 +35,11 @@ pub const TERMINAL_ALL: &[&str] = &[
 pub fn gray_home() -> anyhow::Result<PathBuf> {
     std::env::var_os("GRAY_HOME")
         .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|p| PathBuf::from(p).join(".gray")))
+        .or_else(|| {
+            std::env::var_os("HOME")
+                .or_else(|| std::env::var_os("USERPROFILE"))
+                .map(|p| PathBuf::from(p).join(".gray"))
+        })
         .context("cannot resolve GRAY_HOME")
 }
 
@@ -108,13 +112,9 @@ fn subagents_argv() -> anyhow::Result<Vec<String>> {
         anyhow::ensure!(!parts.is_empty(), "GRAY_WORKFLOWS_SUBAGENTS_CMD is empty");
         return Ok(parts);
     }
-    let gray = std::env::var_os("GRAY_BIN").map(PathBuf::from).or_else(|| {
-        std::env::var_os("PATH").and_then(|paths| {
-            std::env::split_paths(&paths)
-                .map(|d| d.join("gray"))
-                .find(|p| p.is_file())
-        })
-    });
+    let gray = std::env::var_os("GRAY_BIN")
+        .map(PathBuf::from)
+        .or_else(|| find_on_path("gray"));
     if let Some(gray) = gray {
         return Ok(vec![
             gray.to_string_lossy().into_owned(),
@@ -131,6 +131,35 @@ fn subagents_argv() -> anyhow::Result<Vec<String>> {
         .map(|s| vec![s.to_string()])
         .context("no subagents entry point: install gray-subagents")?;
     Ok(argv)
+}
+
+/// First `name` executable on PATH. Windows needs the PATHEXT spellings
+/// CreateProcess runs (.EXE/.COM); the bare name suffices on unix.
+fn find_on_path(name: &str) -> Option<PathBuf> {
+    let paths = std::env::var_os("PATH")?;
+    let names = exe_spellings(name);
+    std::env::split_paths(&paths)
+        .flat_map(|d| names.iter().map(move |n| d.join(n)))
+        .find(|p| p.is_file())
+}
+
+#[cfg(windows)]
+fn exe_spellings(name: &str) -> Vec<String> {
+    let pathext = std::env::var("PATHEXT").unwrap_or_else(|_| ".COM;.EXE".into());
+    let mut v = vec![name.to_string()];
+    v.extend(
+        pathext
+            .split(';')
+            .map(str::trim)
+            .filter(|e| e.eq_ignore_ascii_case(".exe") || e.eq_ignore_ascii_case(".com"))
+            .map(|e| format!("{name}{e}")),
+    );
+    v
+}
+
+#[cfg(not(windows))]
+fn exe_spellings(name: &str) -> Vec<String> {
+    vec![name.to_string()]
 }
 
 /// `subagents run` result: the new run_id. Spawning is synchronous — the

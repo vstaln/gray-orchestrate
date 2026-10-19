@@ -47,7 +47,11 @@ pub fn manifest_loop() -> Value {
 fn gray_home() -> PathBuf {
     std::env::var_os("GRAY_HOME")
         .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".gray")))
+        .or_else(|| {
+            std::env::var_os("HOME")
+                .or_else(|| std::env::var_os("USERPROFILE"))
+                .map(|h| PathBuf::from(h).join(".gray"))
+        })
         .unwrap_or_else(|| PathBuf::from(".gray"))
 }
 

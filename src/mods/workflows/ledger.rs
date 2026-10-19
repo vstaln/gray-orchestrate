@@ -126,8 +126,36 @@ impl Ledger {
     }
     /// True while a detached orchestrator owns this ledger.
     pub fn orchestrator_alive(&self) -> bool {
-        self.pid != 0 && unsafe { libc::kill(self.pid as i32, 0) } == 0
+        pid_alive(self.pid)
     }
+}
+
+/// Pid liveness: kill(pid, 0) on unix, OpenProcess on Windows.
+#[cfg(unix)]
+fn pid_alive(pid: u32) -> bool {
+    pid != 0 && unsafe { libc::kill(pid as i32, 0) } == 0
+}
+
+#[cfg(windows)]
+fn pid_alive(pid: u32) -> bool {
+    use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
+    if pid == 0 {
+        return false;
+    }
+    unsafe {
+        let h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+        if h.is_null() {
+            return false;
+        }
+        CloseHandle(h);
+        true
+    }
+}
+
+#[cfg(not(any(unix, windows)))]
+fn pid_alive(_pid: u32) -> bool {
+    false
 }
 
 pub fn now() -> f64 {
@@ -271,19 +299,45 @@ pub fn new_ledger(
     })
 }
 
-/// 8-hex workflow id from /dev/urandom, retried on collision.
+/// 8-hex workflow id, retried on collision.
 pub fn new_id(cwd: &Path) -> anyhow::Result<String> {
-    use std::io::Read;
-    let mut f = std::fs::File::open("/dev/urandom")?;
     for _ in 0..16 {
-        let mut b = [0u8; 4];
-        f.read_exact(&mut b)?;
-        let id = format!("{:08x}", u32::from_ne_bytes(b));
+        let id = format!("{:08x}", rand_u32());
         if !path(cwd, &id).exists() {
             return Ok(id);
         }
     }
     anyhow::bail!("could not allocate a fresh workflow id")
+}
+
+/// Random u32: /dev/urandom where it exists (unix), else a nanos/pid/counter
+/// scramble — the caller's collision retry covers the rest either way.
+fn rand_u32() -> u32 {
+    #[cfg(unix)]
+    if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
+        use std::io::Read;
+        let mut b = [0u8; 4];
+        if f.read_exact(&mut b).is_ok() {
+            return u32::from_ne_bytes(b);
+        }
+    }
+    static CTR: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos() as u64)
+        .unwrap_or(0);
+    let mut x = (nanos
+        .wrapping_add(
+            CTR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+                .wrapping_mul(0x9E3779B97F4A7C15),
+        ))
+        ^ ((std::process::id() as u64) << 32);
+    x ^= x >> 30;
+    x = x.wrapping_mul(0xBF58476D1CE4E5B9);
+    x ^= x >> 27;
+    x = x.wrapping_mul(0x94D049BB133111EB);
+    x ^= x >> 31;
+    x as u32
 }
 
 /// Item row as the aggregate report sees it.
