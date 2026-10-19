@@ -1,6 +1,6 @@
 [package]
 name = "gray-orchestrate"
-version = "0.1.0"
+version = "0.1.2"
 edition = "2024"
 license = "MIT"
 description = "Merged orchestration plugin for the gray agent harness: loop, gsd, workflows, plan, plannotator in one sidecar."
