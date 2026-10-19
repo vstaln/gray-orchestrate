@@ -87,6 +87,12 @@ pub fn spawn_orchestrator(ledger_path: &Path, cwd: &Path) -> anyhow::Result<u32>
             });
         }
     }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP: survive the sidecar exiting.
+        cmd.creation_flags(0x0000_0008 | 0x0000_0200);
+    }
     let child = cmd.spawn().context("cannot spawn orchestrator")?;
     Ok(child.id())
 }
