@@ -115,7 +115,7 @@ fn command_owner(name: &str) -> Option<Handler> {
 /// Tools each module owns, routed by `tool/call`'s `params.name`.
 fn tool_owner(name: &str) -> Option<Handler> {
     match name {
-        "loop_done" => Some(r#loop::handle_loop),
+        "loop_done" | "loop_task" | "loop_learn" => Some(r#loop::handle_loop),
         "gsd_task" => Some(gsd::handle_gsd),
         _ => None,
     }
