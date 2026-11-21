@@ -13,12 +13,12 @@
 //! `sidecar` is the installed `sidecar_args` form; `manifest` prints the
 //! manifest for installers; `gray workflows <verb>` is the CLI surface.
 
-use clap::{Parser, Subcommand};
 use crate::workflows as wf;
 use crate::workflows::orchestrate;
-use serde_json::{json, Value};
+use clap::{Parser, Subcommand};
+use serde_json::{Value, json};
 use std::io::{BufRead, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Parser)]
 #[command(
@@ -74,7 +74,7 @@ fn session_cwd(params: &Value) -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
-fn execute(action: Action, cwd: &PathBuf) -> anyhow::Result<Value> {
+fn execute(action: Action, cwd: &Path) -> anyhow::Result<Value> {
     match action {
         Action::Run {
             specfile,

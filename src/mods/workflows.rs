@@ -21,18 +21,18 @@
 pub mod ledger;
 #[path = "workflows/orchestrate.rs"]
 pub mod orchestrate;
+#[path = "workflows/sidecar.rs"]
+pub mod sidecar;
 #[path = "workflows/spec.rs"]
 pub mod spec;
 #[path = "workflows/subagents.rs"]
 pub mod subagents;
 #[path = "workflows/worktree.rs"]
 pub mod worktree;
-#[path = "workflows/sidecar.rs"]
-pub mod sidecar;
 pub use sidecar::{handle_workflows, main_workflows};
 
 use anyhow::Context;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -133,14 +133,14 @@ fn start(
 }
 
 /// `/workflow <specfile>` / `gray workflows run <specfile>`.
-pub fn run_workflows(cwd: &Path, specfile: &str, max_running: Option<u32>) -> anyhow::Result<Value> {
+pub fn run_workflows(
+    cwd: &Path,
+    specfile: &str,
+    max_running: Option<u32>,
+) -> anyhow::Result<Value> {
     let path = {
         let p = PathBuf::from(specfile);
-        if p.is_absolute() {
-            p
-        } else {
-            cwd.join(p)
-        }
+        if p.is_absolute() { p } else { cwd.join(p) }
     };
     let s = spec::parse_file(&path)?;
     start(cwd, s, &path.to_string_lossy(), max_running)

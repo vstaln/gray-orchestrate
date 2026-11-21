@@ -9,7 +9,7 @@
 
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 
 use crate::workflows::spec::Spec;
@@ -211,10 +211,10 @@ pub fn list(cwd: &Path) -> Vec<Ledger> {
     if let Ok(entries) = std::fs::read_dir(&dir) {
         for entry in entries.flatten() {
             let p = entry.path();
-            if p.extension().and_then(|s| s.to_str()) == Some("json") {
-                if let Ok(l) = load(&p) {
-                    out.push(l);
-                }
+            if p.extension().and_then(|s| s.to_str()) == Some("json")
+                && let Ok(l) = load(&p)
+            {
+                out.push(l);
             }
         }
     }
@@ -326,12 +326,10 @@ fn rand_u32() -> u32 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos() as u64)
         .unwrap_or(0);
-    let mut x = (nanos
-        .wrapping_add(
-            CTR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-                .wrapping_mul(0x9E3779B97F4A7C15),
-        ))
-        ^ ((std::process::id() as u64) << 32);
+    let mut x = (nanos.wrapping_add(
+        CTR.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            .wrapping_mul(0x9E3779B97F4A7C15),
+    )) ^ ((std::process::id() as u64) << 32);
     x ^= x >> 30;
     x = x.wrapping_mul(0xBF58476D1CE4E5B9);
     x ^= x >> 27;

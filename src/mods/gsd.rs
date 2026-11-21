@@ -58,8 +58,12 @@ fn parse_tasks(content: &str) -> Vec<(usize, bool, String)> {
     for (i, line) in content.lines().enumerate() {
         let t = line.trim_start();
         for (prefix, checked) in [
-            ("- [ ]", false), ("- [x]", true), ("- [X]", true),
-            ("* [ ]", false), ("* [x]", true), ("* [X]", true),
+            ("- [ ]", false),
+            ("- [x]", true),
+            ("- [X]", true),
+            ("* [ ]", false),
+            ("* [x]", true),
+            ("* [X]", true),
         ] {
             if let Some(rest) = t.strip_prefix(prefix) {
                 out.push((i, checked, rest.trim().to_string()));
@@ -78,7 +82,11 @@ fn render_tasks(content: &str) -> String {
     let done = tasks.iter().filter(|t| t.1).count();
     let mut s = format!("{done}/{} tasks done\n", tasks.len());
     for (n, (_, checked, text)) in tasks.iter().enumerate() {
-        s.push_str(&format!("{}. [{}] {text}\n", n + 1, if *checked { "x" } else { " " }));
+        s.push_str(&format!(
+            "{}. [{}] {text}\n",
+            n + 1,
+            if *checked { "x" } else { " " }
+        ));
     }
     s.trim_end().to_string()
 }
@@ -101,7 +109,11 @@ fn gsd_task(args: &Value) -> Result<String, String> {
     let action = args.get("action").and_then(Value::as_str).unwrap_or("list");
     match action {
         "add" => {
-            let text = args.get("text").and_then(Value::as_str).unwrap_or("").trim();
+            let text = args
+                .get("text")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .trim();
             if text.is_empty() {
                 return Err("add needs `text`".into());
             }
@@ -177,7 +189,9 @@ fn gsd_prompt(goal: &str, spec_only: bool) -> String {
             (`- [ ]` checkbox list). Then STOP — do not execute. Report what you wrote."
         )
     } else {
-        format!("You are running the GSD loop for this repository.\n\nGoal: {goal}\n\n{LOOP_PROMPT_TAIL}")
+        format!(
+            "You are running the GSD loop for this repository.\n\nGoal: {goal}\n\n{LOOP_PROMPT_TAIL}"
+        )
     }
 }
 
@@ -186,13 +200,14 @@ fn execute_prompt(dir: &Path) -> Result<String, String> {
     if !tasks.exists() {
         return Err("no .gsd/tasks.md — run /gsd <goal> first".into());
     }
-    Ok(format!(
+    Ok(
         "Resume the GSD loop in this repository. Read `.gsd/spec.md`, `.gsd/plan.md`, and \
         `.gsd/tasks.md` first. Then execute each unchecked `- [ ]` task in order: implement, \
         run its verification from plan.md, mark it `- [x]` via the `gsd_task` tool only after \
         it passes. Never mark unverified work done. When every box is checked, run the \
         acceptance criteria from spec.md and report."
-    ))
+            .to_string(),
+    )
 }
 
 fn status_text(dir: &Path) -> String {
@@ -201,7 +216,11 @@ fn status_text(dir: &Path) -> String {
     for f in ["spec.md", "plan.md"] {
         s.push_str(&format!(
             ".gsd/{f}: {}\n",
-            if g.join(f).exists() { "present" } else { "missing" }
+            if g.join(f).exists() {
+                "present"
+            } else {
+                "missing"
+            }
         ));
     }
     match std::fs::read_to_string(g.join("tasks.md")) {
@@ -293,7 +312,9 @@ pub fn main_gsd() -> std::io::Result<()> {
     let mut stdout = std::io::stdout();
     for line in stdin.lock().lines() {
         let line = line?;
-        let Ok(req) = serde_json::from_str::<Value>(&line) else { continue };
+        let Ok(req) = serde_json::from_str::<Value>(&line) else {
+            continue;
+        };
         let (reply, exit) = handle_gsd(&req);
         if let Some(reply) = reply {
             writeln!(stdout, "{reply}")?;
@@ -311,7 +332,9 @@ mod tests {
     use super::*;
 
     fn call(method: &str, params: Value) -> Value {
-        handle_gsd(&json!({ "id": 1, "method": method, "params": params })).0.unwrap()
+        handle_gsd(&json!({ "id": 1, "method": method, "params": params }))
+            .0
+            .unwrap()
     }
 
     #[test]
@@ -324,10 +347,13 @@ mod tests {
 
     #[test]
     fn goal_returns_prompt_mentioning_gsd_files() {
-        let r = call("command/run", json!({
-            "name": "/gsd", "argv": ["add", "oauth", "login"],
-            "session": {"id": "s", "cwd": "/tmp/x"}
-        }));
+        let r = call(
+            "command/run",
+            json!({
+                "name": "/gsd", "argv": ["add", "oauth", "login"],
+                "session": {"id": "s", "cwd": "/tmp/x"}
+            }),
+        );
         let p = r["result"]["prompt"].as_str().unwrap();
         assert!(p.contains("add oauth login"));
         assert!(p.contains(".gsd/spec.md") && p.contains(".gsd/tasks.md"));
@@ -335,19 +361,30 @@ mod tests {
 
     #[test]
     fn spec_only_stops_before_execute() {
-        let r = call("command/run", json!({
-            "name": "/gsd", "argv": ["spec-only", "x"], "session": {"cwd": "/tmp"}
-        }));
+        let r = call(
+            "command/run",
+            json!({
+                "name": "/gsd", "argv": ["spec-only", "x"], "session": {"cwd": "/tmp"}
+            }),
+        );
         let p = r["result"]["prompt"].as_str().unwrap();
         assert!(p.contains("STOP"));
     }
 
     #[test]
     fn execute_without_state_is_text_not_prompt() {
-        let r = call("command/run", json!({
-            "name": "/gsd", "argv": ["execute"], "session": {"cwd": "/nonexistent-gsd-dir"}
-        }));
-        assert!(r["result"]["text"].as_str().unwrap().contains("no .gsd/tasks.md"));
+        let r = call(
+            "command/run",
+            json!({
+                "name": "/gsd", "argv": ["execute"], "session": {"cwd": "/nonexistent-gsd-dir"}
+            }),
+        );
+        assert!(
+            r["result"]["text"]
+                .as_str()
+                .unwrap()
+                .contains("no .gsd/tasks.md")
+        );
         assert!(r["result"].get("prompt").is_none());
     }
 
@@ -355,15 +392,46 @@ mod tests {
     fn task_tool_roundtrip() {
         let dir = std::env::temp_dir().join(format!("gsd-test-{}", std::process::id()));
         std::fs::create_dir_all(dir.join(".gsd")).unwrap();
-        std::fs::write(dir.join(".gsd/tasks.md"), "# Tasks\n- [ ] first\n- [ ] second\n").unwrap();
+        std::fs::write(
+            dir.join(".gsd/tasks.md"),
+            "# Tasks\n- [ ] first\n- [ ] second\n",
+        )
+        .unwrap();
         let d = dir.to_str().unwrap();
-        let r = call("tool/call", json!({"name":"gsd_task","args":{"action":"done","index":2,"dir":d}}));
-        assert!(r["result"]["content"].as_str().unwrap().contains("2. [x] second"));
-        let r = call("tool/call", json!({"name":"gsd_task","args":{"action":"undo","index":2,"dir":d}}));
-        assert!(r["result"]["content"].as_str().unwrap().contains("0/2 tasks done"));
-        let r = call("tool/call", json!({"name":"gsd_task","args":{"action":"add","text":"third","dir":d}}));
-        assert!(r["result"]["content"].as_str().unwrap().contains("3. [ ] third"));
-        let r = call("tool/call", json!({"name":"gsd_task","args":{"action":"done","index":9,"dir":d}}));
+        let r = call(
+            "tool/call",
+            json!({"name":"gsd_task","args":{"action":"done","index":2,"dir":d}}),
+        );
+        assert!(
+            r["result"]["content"]
+                .as_str()
+                .unwrap()
+                .contains("2. [x] second")
+        );
+        let r = call(
+            "tool/call",
+            json!({"name":"gsd_task","args":{"action":"undo","index":2,"dir":d}}),
+        );
+        assert!(
+            r["result"]["content"]
+                .as_str()
+                .unwrap()
+                .contains("0/2 tasks done")
+        );
+        let r = call(
+            "tool/call",
+            json!({"name":"gsd_task","args":{"action":"add","text":"third","dir":d}}),
+        );
+        assert!(
+            r["result"]["content"]
+                .as_str()
+                .unwrap()
+                .contains("3. [ ] third")
+        );
+        let r = call(
+            "tool/call",
+            json!({"name":"gsd_task","args":{"action":"done","index":9,"dir":d}}),
+        );
         assert_eq!(r["result"]["is_error"], true);
         let _ = std::fs::remove_dir_all(&dir);
     }

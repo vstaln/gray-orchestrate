@@ -66,7 +66,12 @@ fn manifest() -> Value {
     let mut subcommands: Vec<Value> = Vec::new();
     let mut completion: Vec<Value> = Vec::new();
     for (_, m) in module_manifests() {
-        for t in m.get("tools").and_then(Value::as_array).into_iter().flatten() {
+        for t in m
+            .get("tools")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
             let name = t.get("name");
             if !tools.iter().any(|x| x.get("name") == name) {
                 tools.push(t.clone());
@@ -126,7 +131,9 @@ fn fan_out(req: &Value, owners: &[Handler]) -> Value {
     let mut parts: Vec<String> = Vec::new();
     for h in owners {
         if let (Some(reply), _) = h(req) {
-            let Some(r) = reply.get("result") else { continue };
+            let Some(r) = reply.get("result") else {
+                continue;
+            };
             for key in ["text", "message", "append"] {
                 if let Some(t) = r.get(key).and_then(Value::as_str) {
                     let t = t.trim_end();

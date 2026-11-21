@@ -30,8 +30,8 @@ use serde::{Deserialize, Serialize};
 
 #[path = "plannotator/sidecar.rs"]
 pub mod sidecar;
-pub use sidecar::{handle_plannotator, main_plannotator};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
+pub use sidecar::handle_plannotator;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -45,6 +45,7 @@ pub const PLANS_DIR: &str = ".gray/plans";
 /// Review phase: which side the next file change is attributed to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[allow(clippy::enum_variant_names)]
 pub enum Phase {
     /// `/plan-review` issued but the agent hasn't written the plan yet.
     AwaitingPlan,
@@ -129,7 +130,10 @@ pub fn load_state(cwd: &Path) -> Option<ReviewState> {
 
 fn save_state(cwd: &Path, st: &ReviewState) -> std::io::Result<()> {
     std::fs::create_dir_all(plan_dir(cwd))?;
-    std::fs::write(state_path(cwd), serde_json::to_string(st).unwrap_or_default())
+    std::fs::write(
+        state_path(cwd),
+        serde_json::to_string(st).unwrap_or_default(),
+    )
 }
 
 fn clear_state(cwd: &Path) {
@@ -274,7 +278,12 @@ pub fn diff_text_edits(baseline: &str, current: &str) -> (Vec<String>, Vec<Strin
 
 /// The revision prompt: what `command/run` hands back as `{"prompt": …}`
 /// so the host submits it as a user turn.
-pub fn revision_prompt(st: &ReviewState, annotations: &[Annotation], added: &[String], removed: &[String]) -> String {
+pub fn revision_prompt(
+    st: &ReviewState,
+    annotations: &[Annotation],
+    added: &[String],
+    removed: &[String],
+) -> String {
     let mut p = format!(
         "The user reviewed your plan at `{}` and left feedback (round {}).\n",
         st.rel_path,
@@ -559,7 +568,11 @@ mod tests {
         };
         let p = revision_prompt(
             &st,
-            &[Annotation { text: "rethink".into(), line: 3, context: "step".into() }],
+            &[Annotation {
+                text: "rethink".into(),
+                line: 3,
+                context: "step".into(),
+            }],
             &["added line".into()],
             &["gone".into()],
         );

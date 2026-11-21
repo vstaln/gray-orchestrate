@@ -21,7 +21,15 @@ const DENY_REASON: &str = "plan mode is on — read-only; /plan to exit";
 /// Read-only tool allowlist for plan mode. Everything else denies.
 /// `bash` is in the set but gated by SAFE/DESTRUCTIVE command patterns.
 const READ_ONLY_TOOLS: &[&str] = &[
-    "bash", "read", "grep", "find", "ls", "view", "web_search", "web_fetch", "recall",
+    "bash",
+    "read",
+    "grep",
+    "find",
+    "ls",
+    "view",
+    "web_search",
+    "web_fetch",
+    "recall",
 ];
 
 /// Destructive command patterns for Rust regex.
@@ -120,12 +128,22 @@ fn compiled(list: &[&str]) -> &'static [regex::Regex] {
     // Each call site uses its own OnceLock keyed by list identity.
     static CACHE: OnceLock<Vec<regex::Regex>> = OnceLock::new();
     static CACHE2: OnceLock<Vec<regex::Regex>> = OnceLock::new();
-    let slot = if std::ptr::eq(list, DESTRUCTIVE_PATTERNS) { &CACHE } else { &CACHE2 };
-    slot.get_or_init(|| list.iter().filter_map(|p| regex::Regex::new(p).ok()).collect())
+    let slot = if std::ptr::eq(list, DESTRUCTIVE_PATTERNS) {
+        &CACHE
+    } else {
+        &CACHE2
+    };
+    slot.get_or_init(|| {
+        list.iter()
+            .filter_map(|p| regex::Regex::new(p).ok())
+            .collect()
+    })
 }
 
 fn is_destructive(segment: &str) -> bool {
-    compiled(DESTRUCTIVE_PATTERNS).iter().any(|p| p.is_match(segment))
+    compiled(DESTRUCTIVE_PATTERNS)
+        .iter()
+        .any(|p| p.is_match(segment))
 }
 
 fn is_safe_segment(segment: &str) -> bool {
@@ -136,7 +154,7 @@ fn is_safe_segment(segment: &str) -> bool {
 /// and newlines. A segment only needs to be safe if it's non-empty.
 fn segments(command: &str) -> Vec<&str> {
     command
-        .split(|c| c == '|' || c == '&' || c == ';' || c == '\n')
+        .split(['|', '&', ';', '\n'])
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .collect()
@@ -291,7 +309,9 @@ pub fn main_plan() -> std::io::Result<()> {
     let mut stdout = std::io::stdout();
     for line in stdin.lock().lines() {
         let line = line?;
-        let Ok(req) = serde_json::from_str::<Value>(&line) else { continue };
+        let Ok(req) = serde_json::from_str::<Value>(&line) else {
+            continue;
+        };
         let (reply, exit) = handle_plan(&req);
         if let Some(reply) = reply {
             writeln!(stdout, "{reply}")?;
