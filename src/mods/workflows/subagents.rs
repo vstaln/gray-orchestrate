@@ -13,7 +13,7 @@
 //! (default 4) — the supervisor itself rejects over-cap launches, so the
 //! orchestrator counts active records before spawning.
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use serde_json::Value;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -63,17 +63,16 @@ pub fn cap() -> u32 {
 /// Every run record under `subagents/runs`, parse failures skipped.
 pub fn all_runs() -> Vec<Value> {
     let mut out = Vec::new();
-    if let Ok(dir) = runs_dir() {
-        if let Ok(entries) = std::fs::read_dir(dir) {
-            for entry in entries.flatten() {
-                let p = entry.path();
-                if p.extension().and_then(|s| s.to_str()) == Some("json") {
-                    if let Ok(v) =
-                        serde_json::from_slice::<Value>(&std::fs::read(&p).unwrap_or_default())
-                    {
-                        out.push(v);
-                    }
-                }
+    if let Ok(dir) = runs_dir()
+        && let Ok(entries) = std::fs::read_dir(dir)
+    {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.extension().and_then(|s| s.to_str()) == Some("json")
+                && let Ok(v) =
+                    serde_json::from_slice::<Value>(&std::fs::read(&p).unwrap_or_default())
+            {
+                out.push(v);
             }
         }
     }

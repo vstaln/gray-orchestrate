@@ -16,7 +16,7 @@
 //! prints the manifest for installers; `status` is a debug helper.
 
 use crate::plannotator as p;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::io::{BufRead, Write};
 use std::path::PathBuf;
 
@@ -47,7 +47,11 @@ pub fn handle_plannotator(req: &Value) -> Option<Value> {
             let argv: Vec<String> = params
                 .get("argv")
                 .and_then(Value::as_array)
-                .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|v| v.as_str().map(str::to_owned))
+                        .collect()
+                })
                 .unwrap_or_default();
             let cwd = session_cwd(&params);
             match name {

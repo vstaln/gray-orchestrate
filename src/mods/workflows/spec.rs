@@ -18,9 +18,9 @@
 //!
 //! A bare top-level array is accepted as `items`.
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::path::Path;
 
 pub const MAX_ITEMS: usize = 64;
